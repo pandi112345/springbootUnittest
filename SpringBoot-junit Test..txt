@@ -1,0 +1,477 @@
+   *****************************Spring Boot Unit Test******************************************
+
+
+                     ........... book controller......................................
+
+
+
+package com.kgisl.spunittest.controller;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import com.kgisl.spunittest.entity.Book;
+import com.kgisl.spunittest.service.BookService;
+@CrossOrigin(origins = "*")
+@EnableAspectJAutoProxy(proxyTargetClass = true)
+@RestController
+@RequestMapping("/api/books")
+public class BookController {
+    @Autowired
+   private BookService bookService;
+   // @Autowired
+   // private ModelMapper modelMapper;
+   @PostMapping(value = "/", headers = "Accept=application/json")
+   public ResponseEntity<Book> createBook(@RequestBody Book book) {
+       Book actualBook=bookService.createBook(book);
+       HttpHeaders headers = new HttpHeaders();
+       // headers.setLocation(ucBuilder.path("/{id}").buildAndExpand(book.getBookid()).toUri());
+       return new ResponseEntity<>(actualBook,headers, HttpStatus.CREATED);
+   }
+   @GetMapping("/")
+   public @ResponseBody ResponseEntity<List<Book>> all() {
+       return new ResponseEntity<>(bookService.getBooks(), HttpStatus.OK);
+   }
+   @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+   public ResponseEntity<Book> getBookById(@PathVariable("id") long id) {
+       Book book = bookService.findByBookId(id);
+       if (book == null) {
+           return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+       }
+       return new ResponseEntity<>(book, HttpStatus.OK);
+   }
+   @PutMapping(value = "/{id}", headers="Accept=application/json")
+   public ResponseEntity<Book> updateBook(@PathVariable("id") long id,@RequestBody Book currentBook)
+   {
+       Book book=bookService.updateBook(id,currentBook);
+       return new ResponseEntity<>(book,HttpStatus.OK);
+   }
+   @DeleteMapping(value="/{id}", headers ="Accept=application/json")
+   public ResponseEntity<Book> deleteBook(@PathVariable("id") Long id){
+       Book user = bookService.findByBookId(id);
+       if (user == null) {
+           return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+       }
+       bookService.deleteBookById(id);
+       return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+   }
+}
+
+...................................................book entity......................................................................................
+package com.kgisl.spunittest.entity;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+@Entity
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    protected long id;
+    protected String title;
+    protected String author;
+    protected float price;
+    public long getId() {
+        return id;
+    }
+    public void setId(long id) {
+        this.id = id;
+    }
+    public String getTitle() {
+        return title;
+    }
+    public void setTitle(String title) {
+        this.title = title;
+    }
+    public String getAuthor() {
+        return author;
+    }
+    public void setAuthor(String author) {
+        this.author = author;
+    }
+    public float getPrice() {
+        return price;
+    }
+    public void setPrice(float price) {
+        this.price = price;
+    }
+}
+...........................................book repo.............................
+package com.kgisl.spunittest.repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import com.kgisl.spunittest.entity.Book;
+public interface BookRepository extends JpaRepository<Book,Long>{
+}
+
+.............................book service...........................................
+
+package com.kgisl.spunittest.service;
+import java.util.List;
+import com.kgisl.spunittest.entity.Book;
+public interface BookService {
+    public Book createBook(Book book);
+    public List<Book> getBooks();
+    public Book findByBookId(Long id);
+    public Book updateBook(Long id,Book book);
+    public void deleteBookById(Long id); 
+}
+
+
+.............................book service impl.......................................
+
+package com.kgisl.spunittest.service;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.kgisl.spunittest.entity.Book;
+import com.kgisl.spunittest.repository.BookRepository;
+@Service
+@Transactional
+public class BookServiceImp implements BookService {
+    @Autowired
+    BookRepository bookRepository;
+    @Override
+    public Book createBook(Book book) {
+        return bookRepository.save(book);
+    }
+    @Override
+    public List<Book> getBooks() {
+        return bookRepository.findAll();
+    }
+    @Override
+    public Book findByBookId(Long id) {
+        return bookRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Not found"));
+    }
+    @Override
+    public Book updateBook(Long id, Book book) {
+        Book b = bookRepository.findById(id).orElse(new Book());
+        b.setAuthor(book.getAuthor());
+        b.setId(book.getId());
+        b.setPrice(book.getPrice());
+        b.setTitle(book.getTitle());
+        return bookRepository.save(b);
+    }
+    @Override
+    public void deleteBookById(Long id) {
+        bookRepository.deleteById(id);
+    }
+}
+...................................app preperties.............................................
+spring.datasource.url=jdbc:h2:file:~/spunittest
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2db
+......................................book builder-Test........................................
+package com.kgisl.spunittest.controller;
+import com.kgisl.spunittest.entity.Book;
+/**
+ * BookBuilder
+ */
+public class BookBuilder {
+    private Book book = new Book();
+    public BookBuilder id(long l)
+    {
+        book.setId(l);
+        return this;
+    }
+    public BookBuilder name(String author)
+    {
+        book.setAuthor(author);
+        return this;
+    }
+    public Book build()
+    {
+        return book;
+    }
+}
+...................................book builder controller--test-----------------------------------
+package com.kgisl.spunittest.controller;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kgisl.spunittest.entity.Book;
+import com.kgisl.spunittest.service.BookService;
+@WebMvcTest(value = BookController.class)
+public class BookControllerMockMVCIT {
+    @Autowired
+    private MockMvc mockMvc;
+    @MockBean
+    private BookService bookService;
+    public Book book1 = new BookBuilder().id(1L).build();
+    public Book book2 = new BookBuilder().id(1L).name("Book 2").build();
+    @Test
+    public void getAll() throws Exception {
+        List<Book> alist1 = new ArrayList<Book>();
+        alist1.add(book1);
+        given(bookService.getBooks()).willReturn(alist1);
+        mockMvc.perform(get("/api/books/").accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
+                .andExpect(content().json("[{'id': 1}]"));
+    }
+    @Test
+    public void postmapping() throws Exception {
+        List<Book> alist1 = new ArrayList<Book>();
+        alist1.add(book1);
+        when(bookService.findByBookId(book1.getId())).thenReturn(book1);
+        mockMvc.perform(
+                post("/api/books/").contentType(MediaType.APPLICATION_JSON).content(asJsonString(book1)))
+                .andExpect(status().isCreated());
+        // verify(accountService, times(1)).find(acc.getAccountId());
+        // verify(accountService, times(1)).save(acc);
+        // verifyNoMoreInteractions(accountService);
+    }
+    @Test
+    public void deleteByID() throws Exception {
+        List<Book> alist = new ArrayList<Book>();
+        alist.add(book1);
+        when(bookService.findByBookId(book1.getId())).thenReturn(book1);
+        mockMvc.perform(delete("/api/books/1", book1.getId())).andExpect(status().is2xxSuccessful());
+        // verify(eventService, times(1)).find(currentevent.getId());
+        // verify(bookService, times(1)).deleteBookById(book1.getId());
+        // verifyNoMoreInteractions(bookService);
+    }
+    public static String asJsonString(final Object obj) {
+        try {
+            final ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+...................................................book controller test-----------------------------------------
+package com.kgisl.spunittest.controller;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.util.Arrays;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import com.kgisl.spunittest.entity.Book;
+import com.kgisl.spunittest.service.BookService;
+/**
+ * BookController
+ */
+@ExtendWith(MockitoExtension.class)
+public class BookControllerTest {
+  @Mock
+  private BookService bookService;
+  @InjectMocks
+  private BookController bookController;
+  public static List<Book> expected;
+  Book book1 = new Book();
+  Book book2 = new Book();
+  // public Book book2 = new BookBuilder().id(2L).name("aravinth").build();
+  @Test
+  public void allTest() {
+    expected = Arrays.asList(book1, book2);
+    System.out.println(expected);
+    when(bookService.getBooks()).thenReturn(expected);
+    ResponseEntity<List<Book>> actual = bookController.all();
+    assertNotNull(actual);
+    assertEquals(expected, actual.getBody());
+    assertEquals(HttpStatus.OK, actual.getStatusCode());
+  }
+  @Test
+  public void getBookByIdTest() {
+    Long id = 1L;
+    when(bookService.findByBookId(id)).thenReturn(null);
+    ResponseEntity<Book> actual = bookController.getBookById(id);
+    assertNotNull(actual);
+  }
+  @Test
+  public void createBookTest() {
+    when(bookService.createBook(book1)).thenReturn(book1);
+    bookController.createBook(book1);
+  }
+  @Test
+  public void updateBookTest() {
+    // Book edit = new BookBuilder().name("shanmugam").build();
+    Long id = 1L;
+    // when(bookService.updateBook(id, book1)).thenReturn(book1);
+    ResponseEntity<Book> actual = bookController.updateBook(id, book1);
+    assertNotNull(actual);
+    System.out.println("Actual is  "+actual.getBody());
+    System.out.println("expected-->" + expected);
+    // assertEquals(edit, actual.getBody());
+  }
+  @Test
+  public void deleteBookTest() {
+    Long id = 1L;
+    when(bookService.findByBookId(id)).thenReturn(book1);
+    bookController.deleteBook(id);
+    verify(bookService).deleteBookById(id);
+  }
+}
+....................................................pom.xml..............................
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.6</version>
+        <relativePath/>
+        <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.kgisl</groupId>
+    <artifactId>spunittest</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>spunittest</name>
+    <description>Demo project for Spring Boot</description>
+    <properties>
+        <java.version>1.8</java.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <!-- <scope>test</scope> -->
+            <!-- <exclusions>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+            </exclusions> -->
+        </dependency>
+        <!-- <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency> -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.6.6</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <fork>true</fork>
+                    <executable>C:\Program Files\Java\jdk1.8.0_131\bin\javac</executable>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>${integration-tests.skip}</skipTests>
+                            <includes>
+                                <include>**/*IT.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>${unit-tests.skip}</skipTests>
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
